@@ -29,19 +29,27 @@
 
 namespace nfd {
 
-/** \return the global io_service instance
- */
-boost::asio::io_service&
-getGlobalIoService();
+namespace detail {
 
-#ifdef WITH_TESTS
-/** \brief delete the global io_service instance
- *
- *  It will be recreated at the next invocation of getGlobalIoService.
+/**
+ * @brief Simulator-based IO that implements a few interfaces from boost::asio::io_service
  */
-void
-resetGlobalIoService();
-#endif
+class SimulatorIo
+{
+public:
+  void
+  post(const std::function<void()>& callback);
+
+  void
+  dispatch(const std::function<void()>& callback);
+};
+
+} // namespace detail
+
+/** \return Simulator-based IO object
+ */
+detail::SimulatorIo&
+getGlobalIoService();
 
 } // namespace nfd
 

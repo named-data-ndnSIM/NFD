@@ -24,33 +24,31 @@
  */
 
 #include "global-io.hpp"
-#include <boost/thread/tss.hpp>
+#include "scheduler.hpp"
 
 namespace nfd {
 
-namespace scheduler {
-// defined in scheduler.cpp
+namespace detail {
+
 void
-resetGlobalScheduler();
-} // namespace scheduler
-
-
-static boost::thread_specific_ptr<boost::asio::io_service> g_ioService;
-
-boost::asio::io_service&
-getGlobalIoService()
+SimulatorIo::post(const std::function<void()>& callback)
 {
-  if (g_ioService.get() == nullptr) {
-    g_ioService.reset(new boost::asio::io_service());
-  }
-  return *g_ioService;
+  scheduler::schedule(time::seconds(0), callback);
 }
 
 void
-resetGlobalIoService()
+SimulatorIo::dispatch(const std::function<void()>& callback)
 {
-  scheduler::resetGlobalScheduler();
-  g_ioService.reset();
+  scheduler::schedule(time::seconds(0), callback);
+}
+
+} // namespace detail
+
+detail::SimulatorIo&
+getGlobalIoService()
+{
+  static detail::SimulatorIo io;
+  return io;
 }
 
 } // namespace nfd
