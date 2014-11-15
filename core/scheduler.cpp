@@ -37,7 +37,7 @@ Scheduler&
 getGlobalScheduler()
 {
   if (g_scheduler.get() == nullptr) {
-    g_scheduler.reset(new Scheduler(getGlobalIoService()));
+    g_scheduler.reset(new Scheduler(*static_cast<boost::asio::io_service*>(nullptr)));
   }
 
   return *g_scheduler;

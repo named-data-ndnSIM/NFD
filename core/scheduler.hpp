@@ -51,6 +51,9 @@ schedule(time::nanoseconds after, const EventCallback& event);
 void
 cancel(const EventId& eventId);
 
+Scheduler&
+getGlobalScheduler();
+
 /** \brief cancels an event automatically upon destruction
  */
 class ScopedEventId : noncopyable
