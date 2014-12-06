@@ -31,6 +31,8 @@
 #include "table/cleanup.hpp"
 #include <ndn-cxx/lp/tags.hpp>
 
+#include "face/null-face.hpp"
+
 namespace nfd {
 
 NFD_LOG_INIT("Forwarder");
@@ -47,7 +49,10 @@ Forwarder::Forwarder()
   , m_pit(m_nameTree)
   , m_measurements(m_nameTree)
   , m_strategyChoice(*this)
+  , m_csFace(face::makeNullFace(FaceUri("contentstore://")))
 {
+  getFaceTable().addReserved(m_csFace, face::FACEID_CONTENT_STORE);
+
   m_faceTable.afterAdd.connect([this] (Face& face) {
     face.afterReceiveInterest.connect(
       [this, &face] (const Interest& interest) {
@@ -126,11 +131,23 @@ Forwarder::onIncomingInterest(Face& inFace, const Interest& interest)
   // cancel unsatisfy & straggler timer
   this->cancelUnsatisfyAndStragglerTimer(*pitEntry);
 
-  // is pending?
-  if (!pitEntry->hasInRecords()) {
-    m_cs.find(interest,
-              bind(&Forwarder::onContentStoreHit, this, ref(inFace), pitEntry, _1, _2),
-              bind(&Forwarder::onContentStoreMiss, this, ref(inFace), pitEntry, _1));
+  const pit::InRecordCollection& inRecords = pitEntry->getInRecords();
+  bool isPending = inRecords.begin() != inRecords.end();
+  if (!isPending) {
+    if (m_csFromNdnSim == nullptr) {
+      m_cs.find(interest,
+                bind(&Forwarder::onContentStoreHit, this, ref(inFace), pitEntry, _1, _2),
+                bind(&Forwarder::onContentStoreMiss, this, ref(inFace), pitEntry, _1));
+    }
+    else {
+      shared_ptr<Data> match = m_csFromNdnSim->Lookup(interest.shared_from_this());
+      if (match != nullptr) {
+        this->onContentStoreHit(inFace, pitEntry, interest, *match);
+      }
+      else {
+        this->onContentStoreMiss(inFace, pitEntry, interest);
+      }
+    }
   }
   else {
     this->onContentStoreMiss(inFace, pitEntry, interest);
@@ -198,6 +215,10 @@ Forwarder::onContentStoreHit(const Face& inFace, const shared_ptr<pit::Entry>& p
   NFD_LOG_DEBUG("onContentStoreHit interest=" << interest.getName());
   ++m_counters.nCsHits;
 
+  beforeSatisfyInterest(*pitEntry, *m_csFace, data);
+  this->dispatchToStrategy(*pitEntry,
+    [&] (fw::Strategy& strategy) { strategy.beforeSatisfyInterest(pitEntry, *m_csFace, data); });
+
   data.setTag(make_shared<lp::IncomingFaceIdTag>(face::FACEID_CONTENT_STORE));
   // XXX should we lookup PIT for other Interests that also match csMatch?
 
@@ -245,6 +266,7 @@ Forwarder::onInterestUnsatisfied(const shared_ptr<pit::Entry>& pitEntry)
   NFD_LOG_DEBUG("onInterestUnsatisfied interest=" << pitEntry->getName());
 
   // invoke PIT unsatisfied callback
+  beforeExpirePendingInterest(*pitEntry);
   this->dispatchToStrategy(*pitEntry,
     [&] (fw::Strategy& strategy) { strategy.beforeExpirePendingInterest(pitEntry); });
 
@@ -294,7 +316,10 @@ Forwarder::onIncomingData(Face& inFace, const Data& data)
   }
 
   // CS insert
-  m_cs.insert(data);
+  if (m_csFromNdnSim == nullptr)
+    m_cs.insert(data);
+  else
+    m_csFromNdnSim->Add(data.shared_from_this());
 
   std::set<Face*> pendingDownstreams;
   // foreach PitEntry
@@ -313,6 +338,7 @@ Forwarder::onIncomingData(Face& inFace, const Data& data)
     }
 
     // invoke PIT satisfy callback
+    beforeSatisfyInterest(*pitEntry, inFace, data);
     this->dispatchToStrategy(*pitEntry,
       [&] (fw::Strategy& strategy) { strategy.beforeSatisfyInterest(pitEntry, inFace, data); });
 
@@ -345,7 +371,10 @@ Forwarder::onDataUnsolicited(Face& inFace, const Data& data)
   fw::UnsolicitedDataDecision decision = m_unsolicitedDataPolicy->decide(inFace, data);
   if (decision == fw::UnsolicitedDataDecision::CACHE) {
     // CS insert
-    m_cs.insert(data, true);
+    if (m_csFromNdnSim == nullptr)
+      m_cs.insert(data, true);
+    else
+      m_csFromNdnSim->Add(data.shared_from_this());
   }
 
   NFD_LOG_DEBUG("onDataUnsolicited face=" << inFace.getId() <<
