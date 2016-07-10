@@ -41,7 +41,8 @@
 #endif
 
 /** \def DECL_OVERRIDE
- *  \brief expands to 'override' if compiler supports this feature, otherwise expands to nothing
+ *  \brief expands to 'override' if compiler supports 'override' specifier,
+ *         otherwise expands to nothing
  */
 #ifdef HAVE_CXX_OVERRIDE
 #define DECL_OVERRIDE override
@@ -49,19 +50,46 @@
 #define DECL_OVERRIDE
 #endif
 
+/** \def DECL_FINAL
+ *  \brief expands to 'final' if compiler supports 'final' specifier on method,
+ *         otherwise expands to nothing
+ */
+#ifdef HAVE_CXX_FINAL
+#define DECL_FINAL final
+#else
+#define DECL_FINAL
+#endif
+
+/** \def DECL_CLASS_FINAL
+ *  \brief expands to 'final' if compiler supports 'final' specifier on class,
+ *         otherwise expands to nothing
+ */
+#ifdef HAVE_CXX_CLASS_FINAL
+#define DECL_CLASS_FINAL final
+#else
+#define DECL_CLASS_FINAL
+#endif
+
 #include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <limits>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
-#include <queue>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
-#include <string>
 
-#include <ndn-cxx/common.hpp>
 #include <ndn-cxx/interest.hpp>
 #include <ndn-cxx/data.hpp>
+#include <ndn-cxx/name.hpp>
+#include <ndn-cxx/encoding/block.hpp>
+#include <ndn-cxx/lp/nack.hpp>
+#include <ndn-cxx/util/backports.hpp>
 #include <ndn-cxx/util/face-uri.hpp>
 #include <ndn-cxx/util/signal.hpp>
 
@@ -83,6 +111,7 @@ using std::shared_ptr;
 using std::unique_ptr;
 using std::weak_ptr;
 using std::make_shared;
+using ndn::make_unique;
 using std::enable_shared_from_this;
 
 using std::static_pointer_cast;
@@ -94,10 +123,14 @@ using std::bind;
 using std::ref;
 using std::cref;
 
+using ndn::to_string;
+
 using ndn::Interest;
 using ndn::Data;
 using ndn::Name;
+using ndn::PartialName;
 using ndn::Exclude;
+using ndn::Link;
 using ndn::Block;
 using ndn::util::FaceUri;
 
@@ -106,23 +139,11 @@ namespace tlv {
 using namespace ndn::tlv;
 } // namespace tlv
 
+namespace lp = ndn::lp;
 namespace name = ndn::name;
 namespace time = ndn::time;
 namespace signal = ndn::util::signal;
 
 } // namespace nfd
-
-// Some platforms are missing std::to_string (issue #2743)
-#ifndef HAVE_STD_TO_STRING
-namespace std {
-template<typename V>
-inline std::string
-to_string(const V& v)
-{
-  return boost::lexical_cast<std::string>(v);
-}
-} // namespace std
-#endif // HAVE_STD_TO_STRING
-
 
 #endif // NFD_COMMON_HPP
