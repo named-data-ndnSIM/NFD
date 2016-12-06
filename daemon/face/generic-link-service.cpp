@@ -128,6 +128,14 @@ GenericLinkService::encodeLpFields(const ndn::TagHost& netPkt, lp::Packet& lpPac
   if (congestionMarkTag != nullptr) {
     lpPacket.add<lp::CongestionMarkField>(*congestionMarkTag);
   }
+
+  shared_ptr<lp::HopCountTag> hopCountTag = netPkt.getTag<lp::HopCountTag>();
+  if (hopCountTag != nullptr) {
+    lpPacket.add<lp::HopCountTagField>(*hopCountTag);
+  }
+  else {
+    lpPacket.add<lp::HopCountTagField>(0);
+  }
 }
 
 void
@@ -262,6 +270,11 @@ GenericLinkService::decodeInterest(const Block& netPkt, const lp::Packet& firstP
   // forwarding expects Interest to be created with make_shared
   auto interest = make_shared<Interest>(netPkt);
 
+  // Increment HopCount
+  if (firstPkt.has<lp::HopCountTagField>()) {
+    interest->setTag(make_shared<lp::HopCountTag>(firstPkt.get<lp::HopCountTagField>() + 1));
+  }
+
   if (firstPkt.has<lp::NextHopFaceIdField>()) {
     if (m_options.allowLocalFields) {
       interest->setTag(make_shared<lp::NextHopFaceIdTag>(firstPkt.get<lp::NextHopFaceIdField>()));
@@ -296,6 +309,10 @@ GenericLinkService::decodeData(const Block& netPkt, const lp::Packet& firstPkt)
 
   // forwarding expects Data to be created with make_shared
   auto data = make_shared<Data>(netPkt);
+
+  if (firstPkt.has<lp::HopCountTagField>()) {
+    data->setTag(make_shared<lp::HopCountTag>(firstPkt.get<lp::HopCountTagField>() + 1));
+  }
 
   if (firstPkt.has<lp::NackField>()) {
     ++this->nInNetInvalid;
