@@ -147,6 +147,8 @@ public: // triggers
    *  \warning The strategy must not retain shared_ptr<pit::Entry>, otherwise undefined behavior
    *           may occur. However, the strategy is allowed to store weak_ptr<pit::Entry>.
    */
+  Forwarder& m_forwarder;
+
   virtual void
   afterReceiveInterest(const FaceEndpoint& ingress, const Interest& interest,
                        const shared_ptr<pit::Entry>& pitEntry) = 0;
@@ -427,7 +429,7 @@ private: // instance fields
    *
    *  Triggers can access forwarder indirectly via actions.
    */
-  Forwarder& m_forwarder;
+ // Forwarder& m_forwarder;
 
   MeasurementsAccessor m_measurements;
 

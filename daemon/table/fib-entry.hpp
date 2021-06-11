@@ -81,6 +81,12 @@ public:
   bool
   hasNextHop(const Face& face) const;
 
+  void
+  sortNextHops();
+
+  NextHopList::iterator
+  findNextHop(const Face& face);
+
 private:
   /** \brief adds a NextHop record to the entry
    *
@@ -101,13 +107,13 @@ private:
 
   /** \note This method is non-const because mutable iterators are needed by callers.
    */
-  NextHopList::iterator
-  findNextHop(const Face& face);
+ // NextHopList::iterator
+ // findNextHop(const Face& face);
 
   /** \brief sorts the nexthop list
    */
-  void
-  sortNextHops();
+ // void
+ //  sortNextHops();
 
 private:
   Name m_prefix;

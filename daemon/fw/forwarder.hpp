@@ -37,6 +37,8 @@
 #include "table/strategy-choice.hpp"
 #include "table/dead-nonce-list.hpp"
 #include "table/network-region-table.hpp"
+#include "ns3/node.h"
+
 
 namespace nfd {
 
@@ -61,6 +63,33 @@ public:
   getCounters() const
   {
     return m_counters;
+  }
+
+  public: // faces and policies
+  FaceTable&
+  getFaceTable()
+  {
+    return m_faceTable;
+  }
+
+  /** \brief get existing Face
+   *
+   *  shortcut to .getFaceTable().get(face)
+   */
+  Face*
+  getFace(FaceId id) const
+  {
+    return m_faceTable.get(id);
+  }
+
+  /** \brief add new Face
+   *
+   *  shortcut to .getFaceTable().add(face)
+   */
+  void
+  addFace(shared_ptr<Face> face)
+  {
+    m_faceTable.add(face);
   }
 
   fw::UnsolicitedDataPolicy&
@@ -165,6 +194,23 @@ public: // forwarding entrypoints and tables
     return m_networkRegionTable;
   }
 
+public: // allow enabling ndnSIM content store (will be removed in the future)
+
+ /* void
+  setCsFromNdnSim(ns3::Ptr<ns3::ndn::ContentStore> cs)
+  {
+    m_csFromNdnSim = cs;
+  }
+*/
+  ns3::Ptr<ns3::Node> m_node;
+
+  void
+  setNodeNdnSim(ns3::Ptr<ns3::Node> n)
+  {
+    m_node = n;
+  }  
+
+
 public:
   /** \brief trigger before PIT entry is satisfied
    *  \sa Strategy::beforeSatisfyInterest
@@ -183,6 +229,10 @@ public:
   /** \brief Signals when the incoming interest pipeline gets a miss from the content store
    */
   signal::Signal<Forwarder, Interest> afterCsMiss;
+
+  VIRTUAL_WITH_TESTS void
+  insertDeadNonceList(pit::Entry& pitEntry, Face* upstream);
+
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE: // pipelines
   /** \brief incoming Interest pipeline
@@ -255,13 +305,14 @@ PROTECTED_WITH_TESTS_ELSE_PRIVATE:
    */
   void
   setExpiryTimer(const shared_ptr<pit::Entry>& pitEntry, time::milliseconds duration);
+//PUBLIC_WITH_TESTS_ELSE_PROTECTED:
 
   /** \brief insert Nonce to Dead Nonce List if necessary
    *  \param upstream if null, insert Nonces from all out-records;
    *                  if not null, insert Nonce only on the out-records of this face
    */
-  VIRTUAL_WITH_TESTS void
-  insertDeadNonceList(pit::Entry& pitEntry, Face* upstream);
+//  VIRTUAL_WITH_TESTS void
+//  insertDeadNonceList(pit::Entry& pitEntry, Face* upstream);
 
   /** \brief call trigger (method) on the effective strategy of pitEntry
    */
@@ -277,6 +328,9 @@ PROTECTED_WITH_TESTS_ELSE_PRIVATE:
     trigger(m_strategyChoice.findEffectiveStrategy(pitEntry));
   }
 
+public:
+  Fib                m_fib;
+
 private:
   ForwarderCounters m_counters;
 
@@ -284,7 +338,7 @@ private:
   unique_ptr<fw::UnsolicitedDataPolicy> m_unsolicitedDataPolicy;
 
   NameTree           m_nameTree;
-  Fib                m_fib;
+//  Fib                m_fib;
   Pit                m_pit;
   Cs                 m_cs;
   Measurements       m_measurements;
@@ -293,6 +347,8 @@ private:
   NetworkRegionTable m_networkRegionTable;
   shared_ptr<Face>   m_csFace;
 
+  //ns3::Ptr<ns3::ndn::ContentStore> m_csFromNdnSim;
+  //
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;
 };
